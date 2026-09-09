@@ -1,47 +1,49 @@
 # DevMirror × Nugen Intelligence
 
-DevMirror is a Developer Intelligence application that turns public GitHub evidence into a deterministic `DeveloperProfile`, then uses AI to write an evidence-grounded narrative, compare two profiles, and propose next actions. This repository documents a Nugen domain-alignment assessment in which the Developer Intelligence AI layer is routed to a deployed Nugen model while the GitHub evidence pipeline remains the source of truth.
+DevMirror is a Developer Intelligence application that turns public GitHub evidence into a deterministic `DeveloperProfile`, then uses AI to generate an evidence-grounded narrative, compare developers, identify skill gaps, and propose next actions.
+
+This repository documents a **Nugen domain-alignment assessment** in which the Developer Intelligence AI layer was routed to a deployed Nugen domain-aligned model while the deterministic GitHub evidence pipeline remained the source of truth.
+
+> **Live demo:** https://devmirrorpoweredbynugen.netlify.app/
 
 ## Nugen Assessment
 
-The assessment objective was to deploy and integrate a domain-aligned model into a real product path, not merely call a model from an isolated script. The chosen path is DevMirror's Developer Intelligence feature: profile enrichment and developer-comparison gap reasoning.
+The objective was to integrate a domain-aligned model into a real product path rather than call a model from an isolated script.
 
-The experiment holds deterministic GitHub-derived evidence constant and uses Nugen for the bounded reasoning layer built on that evidence. It validates integration behavior and provider-dependent output variation; it is not a benchmark establishing model superiority.
+The selected domain was:
 
-## Problem: Developer Skill & Engineering Intelligence
+**Developer Skill & Engineering Intelligence**
 
-Developer profiles are often inferred from sparse or self-reported signals. DevMirror instead starts from observable public GitHub signals, builds a structured profile, and uses that representation to answer questions such as:
+The experiment deliberately separates:
 
-- What technical work is visible in a developer's public repositories?
-- Which skills have direct supporting evidence, and which are uncertain or absent from the available evidence?
-- What differentiates two developers for a stated career goal?
-- Which concrete next projects or learning actions may address evidence-backed gaps?
+- **Observed evidence:** deterministic GitHub analysis.
+- **Reasoning:** Nugen-generated narrative, comparison interpretation, gaps, and recommendations.
 
-This is a meaningful domain-alignment problem because software-engineering reasoning must distinguish observed evidence from unsupported inference. It combines engineering vocabulary, developer proficiency signals, project context, skill-gap analysis, recommendations, and reliability constraints.
+The experiment validates integration and provider-dependent behavior. It does **not** claim that Nugen is statistically better than the baseline provider.
 
 ## Domain Alignment
 
-The Nugen alignment corpus was created for the **Developer Skill & Engineering Intelligence** domain and used to create the deployed assessment model. Its documented domain coverage includes:
+The Nugen alignment corpus covers:
 
 - software, backend, frontend, and full-stack engineering;
-- APIs, system design, testing, CI/CD, Git, GitHub, and engineering practices;
+- APIs, system design, testing, CI/CD, Git/GitHub, and engineering practices;
 - AI/LLM engineering, RAG, agents, embeddings, and semantic search;
 - machine-learning engineering, MLOps, and production ML;
 - developer proficiency, skill-gap analysis, evidence grounding, and reliability.
 
-The corpus is an assessment deliverable rather than an application runtime dependency. This repository does not reproduce corpus contents, examples, source materials, or credentials.
+The corpus is an assessment deliverable and is not required at application runtime.
 
 ## Domain-Aligned Model
 
-The deployed model is the domain-aligned **Llama-V3p2-3b-Reasoning** model created for this domain. The application obtains its deployed identifier from `NUGEN_MODEL_ID`; it is not hard-coded in application code.
+The deployed model is the domain-aligned **Llama-V3p2-3b-Reasoning** model created for this domain.
 
-The non-secret identifier documented by the repository's environment template is:
+The application reads the deployed identifier from `NUGEN_MODEL_ID` rather than hard-coding it.
 
 ```text
 model_developer-intelligence-llama-v3p2-3b-reasoning-aligned_alignment_01m238qjs8r2rpe
 ```
 
-Nugen is called through its configured server-side completion endpoint. API credentials remain local, server-side environment variables and are neither committed nor reproduced here.
+Credentials are server-side environment variables and are not committed.
 
 ## Architecture
 
@@ -54,140 +56,180 @@ flowchart TD
   NM --> AI[AI Narrative / Gap Reasoning / Recommendations]
   AI --> UI[DevMirror UI]
 
-  DA -. observed evidence source of truth .-> DP
+  DA -. evidence source of truth .-> DP
   DP -. bounded evidence .-> NM
 ```
 
-The deterministic analysis precedes the model. Nugen receives structured evidence and produces the additive narrative/reasoning layer; it does not replace GitHub analysis or establish observed facts.
+### Integration path
 
-## Integration
-
-The shared server-side gateway isolates provider transport and structured-output handling. Developer Intelligence makes an explicit Nugen selection at both AI call sites:
+**Profile analysis**
 
 ```text
-Profile analysis:
 analyzeAndCache
   → enrichProfileWithAI
   → callStructuredWithMetadata({ provider: "nugen" })
   → Nugen completion adapter
+```
 
-Developer comparison:
+**Developer comparison**
+
+```text
 generateGapAnalysisServer
   → generateGapAnalysis
   → callStructuredWithMetadata({ provider: "nugen" })
   → Nugen completion adapter
 ```
 
-The Nugen adapter submits a non-streaming completion request, parses generated completion text, converts it to JSON, and validates it against the existing structured schema before application data is accepted. It preserves timeout handling and sanitized provider errors.
+The Nugen adapter uses the completion API, parses the returned text as JSON, validates the expected structured schema, handles timeouts/errors, and records provider/model provenance.
 
-Provider/model provenance is stored on Nugen-enriched profiles as optional `aiProvenance` metadata. A `null` or absent Nugen confidence value remains unavailable; the application does not invent a confidence score.
-
-There is no silent Nugen-to-Lovable fallback for Developer Intelligence. If profile enrichment fails, the existing deterministic-profile fallback remains available. Other errors follow existing safe application behavior rather than switching providers.
-
-The existing Lovable branch remains intentionally in the shared gateway for unrelated Role Intelligence and Recruiter functionality. DevMirror is therefore not globally “Nugen-only”: Developer Intelligence is Nugen-routed, while unrelated existing features may continue to use the baseline provider.
+There is no silent Nugen → Lovable fallback for Developer Intelligence. The existing Lovable branch remains intentionally available for unrelated Role Intelligence and Recruiter functionality.
 
 ## Evidence & Grounding
 
-The deterministic GitHub analysis is the source of truth for observed evidence. Its available inputs include:
+The deterministic analyzer currently uses:
 
 - GitHub repository metadata;
 - languages and language statistics;
 - repository topics and descriptions;
 - root-file signals; and
-- project and activity signals.
+- project/activity signals.
 
-It does **not** inspect arbitrary source-code implementation details, dependency manifests, README contents, commit history, or prove that a developer possesses a skill merely because a repository exists. Nugen prompts explicitly require use of supplied evidence only, treat unsupported information as unknown, and prohibit unsupported implementation-level claims.
+It does **not** inspect arbitrary source-code implementation details, dependency manifests, README contents, or commit history. A repository's existence alone does not prove a skill.
+
+Nugen is instructed to reason only over the supplied evidence, treat unsupported information as unknown, and avoid unsupported implementation-level claims.
 
 ## Validation
 
-The completed validation covered the integration boundary as well as its failure behavior:
+The integration was validated at both API and application boundaries:
 
-- The Nugen API contract probe succeeded against the generic completion endpoint.
-- The deployed aligned model was invoked successfully and returned HTTP 200.
-- The response supplied completion text, usage metadata, and deployed-model metadata.
-- A live confidence score was not available in the tested response, so confidence was retained as unavailable rather than fabricated.
-- Generated text is defensively parsed and validated against expected JSON/schema contracts.
-- Tests cover successful completion extraction, finish reason, usage, model metadata, null confidence, malformed/missing choices, malformed JSON, sanitized 401/404/5xx errors, API-key non-leakage, default baseline behavior, and explicit Nugen selection.
-- Focused tests passed and the production build passed.
-- The repository-wide lint command still has unrelated pre-existing formatting issues outside the Nugen implementation; this documentation does not claim full-lint success.
+- Nugen API contract probe succeeded.
+- Deployed aligned model returned HTTP 200.
+- Completion text, usage metadata, and model metadata were returned.
+- The tested response did not expose a live confidence score, so the application keeps confidence unavailable rather than inventing one.
+- Structured output is parsed and schema-validated.
+- Error handling sanitizes upstream failures and prevents API-key leakage.
+- Automated tests cover success/error paths, malformed responses, metadata, null confidence, baseline behavior, and explicit Nugen selection.
+- Focused tests passed.
+- Production build passed.
+- Repository-wide lint still contains unrelated pre-existing formatting issues; full-lint success is not claimed.
 
 ## Baseline vs Nugen Experiment
 
-The manual qualitative comparison used:
-
-- Baseline: `https://preview--dev-compass-52.lovable.app/analyze/arjun-builds`
-- Nugen-integrated local application: `http://localhost:8081/analyze/arjun-builds`
-
-It also included a controlled comparison of:
+The controlled comparison used the same developer/target/goal across providers:
 
 - Developer: `smilewithkhushi`
 - Target: `arjun-builds`
-- Goal: AI Engineer
+- Goal: **AI Engineer**
 
-| Dimension                                  | Baseline                                                 | Nugen                                                          |
-| ------------------------------------------ | -------------------------------------------------------- | -------------------------------------------------------------- |
-| Deterministic GitHub evidence              | Same evidence representation under the existing analyzer | Same evidence representation under the existing analyzer       |
-| Profile facts, skills, projects, and stack | Deterministic source-of-truth output                     | Deterministic source-of-truth output                           |
-| Narrative and trajectory                   | Baseline-provider generated                              | Nugen-generated from supplied evidence                         |
-| Gap insights and missions                  | Baseline-provider generated where applicable             | Nugen-generated from supplied comparison evidence              |
-| Provider provenance                        | Baseline path metadata where available                   | Nugen provider/model provenance recorded for enriched profiles |
+Baseline:
 
-## Experiment Results
+```text
+https://preview--dev-compass-52.lovable.app/analyze/arjun-builds
+```
 
-### Deterministic evidence
+Nugen-integrated local application:
 
-The core `DeveloperProfile` and deterministic comparison stayed essentially stable between the manual baseline and Nugen runs: repository information, stars/followers, primary languages, skill evidence, projects, technology stack, activity, and deterministic gap information came from the same analysis representation.
+```text
+http://localhost:8081/analyze/arjun-builds
+```
 
-### AI-generated reasoning
+| Dimension | Baseline | Nugen |
+|---|---|---|
+| GitHub evidence | Same deterministic representation | Same deterministic representation |
+| Profile facts | Deterministic source of truth | Deterministic source of truth |
+| Skills/projects/stack | Deterministic | Deterministic |
+| Narrative/trajectory | Baseline-provider generated | Nugen-generated |
+| Gap reasoning/missions | Baseline-provider generated where applicable | Nugen-generated |
+| Provider provenance | Baseline metadata where available | Nugen provider/model metadata |
 
-The profile narrative, trajectory, comparison readout, gap insights, and missions are the provider-dependent portion. The earlier controlled comparison showed differences in these generated narratives and recommendations while the underlying deterministic evidence remained fixed.
+### What stayed stable
 
-### Observed difference
+The core profile and comparison evidence remained essentially stable: repository information, stars/followers, primary languages, skill evidence, projects, technology stack, activity, and deterministic gap information came from the same analysis representation.
 
-The observed result is provider-dependent variation in reasoning over the same evidence representation. It does not by itself establish which provider is more accurate, reliable, or useful.
+### What changed
+
+The provider-dependent layer changed. The generated narrative, trajectory, comparison readout, gap insights, missions, and recommendations differed between the baseline and Nugen runs even though the underlying evidence was held constant.
+
+### Result
+
+The observed result is **provider-dependent variation in reasoning over the same evidence representation**.
+
+That is useful evidence for the integration experiment, but it does not establish which provider is more accurate, reliable, or useful.
+
+## Visual Evidence
+
+The screenshots below document the controlled experiment. In the comparison screenshots, the **left side is the baseline application** and the **right side is the Nugen-integrated application**.
+
+> The screenshot files are stored in `screenshots/` in the intended repository layout.
+
+### Profile and evidence
+
+![Developer profile overview](screenshots/01_profile_overview.png)
+
+![Skills — upper section](screenshots/02_skills_upper.png)
+
+![Skills — lower section](screenshots/03_skills_lower.png)
+
+![Projects](screenshots/04_projects.png)
+
+![Technology stack](screenshots/05_tech_stack.png)
+
+![Activity](screenshots/06_activity.png)
+
+### Controlled comparison
+
+![Comparison summary](screenshots/07_comparison_summary.png)
+
+![AI narrative and missions](screenshots/08_narrative_and_missions.png)
+
+![Side-by-side skills](screenshots/09_side_by_side_skills.png)
+
+![Critical gaps](screenshots/10_critical_gaps.png)
+
+![Recommendations and stack comparison](screenshots/11_recommendations_and_stack.png)
+
+> **How to read these results:** deterministic evidence is held constant. Differences in generated narrative, trajectory, missions, and recommendations are the provider-dependent portion. These screenshots are qualitative evidence of integration and behavioral variation, not a statistical model-quality benchmark.
 
 ## Experiment Conclusion
 
-1. **Integration success.** Nugen was successfully deployed as a domain-aligned model and integrated into the real Developer Intelligence execution path.
-2. **Evidence stability.** The deterministic GitHub evidence pipeline remained stable across baseline and Nugen implementations, isolating the LLM/provider as the variable affecting generated reasoning.
-3. **Provider-dependent reasoning.** Narrative and recommendations can vary by provider even when the underlying evidence is held constant.
-4. **Grounding boundary.** The model has access only to the deterministic analyzer's evidence and should not infer unsupported implementation-level skills.
-5. **No premature quality claim.** This is an integration and behavioral validation, not a statistically meaningful model-quality evaluation.
-6. **Next experiment.** A stronger evaluation should use a labeled benchmark to compare providers on the same evidence inputs and measurable criteria.
+1. **Integration success:** Nugen was deployed as a domain-aligned model and integrated into the real Developer Intelligence execution path.
+2. **Evidence stability:** the deterministic GitHub evidence pipeline stayed stable across baseline and Nugen implementations.
+3. **Provider-dependent reasoning:** generated narrative and recommendations can vary by provider even with identical evidence.
+4. **Grounding boundary:** Nugen reasons over the evidence representation produced by the deterministic analyzer and should not invent unsupported implementation-level skills.
+5. **No premature quality claim:** this is an integration/behavioral validation, not a statistically meaningful quality benchmark.
+6. **Next experiment:** use a labeled benchmark and measurable metrics to compare providers on identical inputs.
 
 ## Limitations
 
-- The comparison is a small, manual, qualitative sample.
-- There is no labeled ground truth for profile quality, recommendations, or role-fit judgment in this experiment.
-- The experiment makes no statistically significant claim about accuracy, reliability, recommendation quality, or hallucination rate.
-- GitHub-derived evidence has deliberate coverage limits and cannot prove unobserved engineering work or proficiency.
-- Nugen confidence calibration cannot be assessed until confidence scores are available from the deployed API response.
+- Small manual qualitative sample.
+- No labeled ground truth for profile quality, role-fit, or recommendation quality.
+- No statistically significant claim about accuracy, reliability, hallucination rate, or usefulness.
+- GitHub evidence cannot prove unobserved engineering work or proficiency.
+- Confidence calibration cannot be evaluated until confidence scores are available from the deployed API response.
 
 ## Next Evaluation
 
-The next ML-engineering evaluation should build a labeled benchmark of developer profiles and expected outcomes, including:
+Build a labeled benchmark containing:
 
 - skill classifications;
 - evidence-grounded explanations;
 - role-fit judgments;
 - skill gaps;
 - recommendations; and
-- unsupported-claim or hallucination cases.
+- unsupported-claim/hallucination cases.
 
-Run Lovable and Nugen against identical evidence inputs and measure:
+Run the baseline and Nugen providers against identical evidence inputs and measure:
 
-- factual and evidence-grounded accuracy;
+- factual/evidence-grounded accuracy;
 - unsupported-claim rate;
 - structured-output validity;
 - consistency and reproducibility;
 - recommendation usefulness; and
-- confidence calibration, if confidence scores become available.
+- confidence calibration when scores are available.
 
-This would turn the current qualitative A/B exercise into a measurable reliability experiment.
+This converts the current qualitative A/B exercise into a measurable ML reliability experiment.
 
 ## Running Locally
-
-Use only the repository's existing scripts:
 
 ```bash
 npm install
@@ -195,7 +237,7 @@ cp .env.example .env
 npm run dev
 ```
 
-For validation:
+Validation:
 
 ```bash
 bun test
@@ -203,11 +245,11 @@ npm run build
 npm run lint
 ```
 
-Configure required values in the project-root `.env`. Keep all credentials server-side where required, and do not commit `.env` files.
+Do not commit `.env` files or secrets.
 
 ## Security
 
-Nugen, Supabase, GitHub, and Lovable credentials must never appear in source, tests, documentation, or committed environment files. The Nugen adapter reads its credentials and deployment configuration from server-side environment variables. Provider errors are sanitized so raw upstream diagnostics and credentials are not exposed.
+Nugen, Supabase, GitHub, and Lovable credentials must never appear in source, tests, screenshots, documentation, or committed environment files. Provider errors are sanitized and credentials remain server-side.
 
 ## Assessment Deliverables
 

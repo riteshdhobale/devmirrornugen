@@ -217,3 +217,29 @@ Nugen, Supabase, GitHub, and Lovable credentials must never appear in source, te
 - proposed labeled benchmark for the next controlled evaluation;
 - automated-test and validation documentation; and
 - this architecture and experiment documentation.
+
+## Visual Evidence
+
+### DevMirror Profile Analysis
+
+![Profile Overview](screenshots/01_profile_overview.png)
+
+### Baseline vs Nugen Comparison
+
+![Comparison Summary](screenshots/07_comparison_summary.png)
+
+### Nugen AI Narrative and Missions
+
+![Nugen Narrative and Missions](screenshots/08_narrative_and_missions.png)
+
+### Side-by-Side Skill Comparison
+
+![Side-by-Side Skills](screenshots/09_side_by_side_skills.png)
+
+### Critical Skill Gaps
+
+![Critical Gaps](screenshots/10_critical_gaps.png)
+
+### Recommendations and Technology Stack
+
+![Recommendations and Stack](screenshots/11_recommendations_and_stack.png)

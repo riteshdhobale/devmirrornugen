@@ -4,5 +4,5 @@ export function getAuthRedirectUrl(): string {
     if (typeof window !== "undefined") return window.location.origin;
     if (configuredAuthRedirect) return configuredAuthRedirect;
 
-    return "https://devmirrorpoweredbynugen.netlify.app/";
+    throw new Error("Auth redirect URL is unavailable outside the browser.");
 }

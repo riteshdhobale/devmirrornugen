@@ -3,6 +3,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { motion } from "motion/react";
 import { ArrowLeft, ArrowRight, Github, Loader2 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { getAuthRedirectUrl } from "@/integrations/supabase/authRedirect";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/auth")({
@@ -40,7 +41,7 @@ function AuthPage() {
         const { error } = await supabase.auth.signUp({
           email,
           password,
-          options: { emailRedirectTo: window.location.origin },
+          options: { emailRedirectTo: getAuthRedirectUrl() },
         });
         if (error) throw error;
         toast.success("Check your inbox", {
@@ -58,19 +59,16 @@ function AuthPage() {
 
   const signInWithGoogle = async () => {
     setBusy("google");
-    // Dynamic import: the OAuth helper touches browser APIs at module scope,
-    // which would break SSR of this route.
-    const { lovable } = await import("@/integrations/lovable");
-    const result = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin,
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: getAuthRedirectUrl(),
+      },
     });
-    if (result.error) {
+    if (error) {
       setBusy(null);
-      toast.error("Google sign-in failed", { description: result.error.message });
-      return;
+      toast.error("Google sign-in failed", { description: error.message });
     }
-    if (result.redirected) return; // browser is navigating to Google
-    navigate({ to: "/dashboard" });
   };
 
   return (

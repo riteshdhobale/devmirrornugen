@@ -52,7 +52,8 @@ function createSupabaseClient() {
       storage: brokeredPreviewStorage(),
       persistSession: true,
       autoRefreshToken: true,
-    }
+      detectSessionInUrl: true,
+    },
   });
 }
 

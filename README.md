@@ -4,7 +4,9 @@ DevMirror is a Developer Intelligence application that turns public GitHub evide
 
 This repository documents a **Nugen domain-alignment assessment** in which the Developer Intelligence AI layer was routed to a deployed Nugen domain-aligned model while the deterministic GitHub evidence pipeline remained the source of truth.
 
-> **Live demo:** https://devmirrorpoweredbynugen.netlify.app/
+> **Live demo:** https://devmirrornugen-566fw68s6-riteshdhobales-projects.vercel.app/
+>
+> **GitHub repository:** https://github.com/riteshdhobale/devmirrornugen
 
 ## Nugen Assessment
 
